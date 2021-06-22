@@ -28,7 +28,12 @@ String getValue(String data, char separator, int index)
   return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
-Watchy::Watchy(){} //constructor
+#define ESP_RTC  // enable using the ESP32-PICO-D4's internal clocks for time-keeping
+
+Watchy::Watchy(){  //constructor
+    // use 8.5 MHz oscillator divided into 256 (~33 kHz) for CLK_SLOW instead of the default 150 kHz oscillator
+    rtc_clk_slow_freq_set(RTC_SLOW_FREQ_8MD256);
+} 
 
 void Watchy::init(String datetime){
     esp_sleep_wakeup_cause_t wakeup_reason;
@@ -82,7 +87,9 @@ void Watchy::deepSleep(){
   esp_sleep_enable_ext0_wakeup(RTC_PIN, 0); //enable deep sleep wake on RTC interrupt
   #endif  
   #ifdef ESP_RTC
-  esp_sleep_enable_timer_wakeup(60000000);
+  // esp_sleep_enable_timer_wakeup(60000000);  // for 150 kHz oscillator
+  int32_t sleep_offset = -2400000;  // I have found it necessary to include an offset to the sleep call below to get good results, YMMV.  -SnoopJ
+  esp_sleep_enable_timer_wakeup(13281250 + sleep_offset);  // for 8.5 MHz (into 256) oscillator [value obtained by proportion: (8.5 MHz / 256) / 150 kHz * 60 sec ~ 13.281250 sec]
   #endif 
   esp_sleep_enable_ext1_wakeup(BTN_PIN_MASK, ESP_EXT1_WAKEUP_ANY_HIGH); //enable deep sleep wake on button press
   esp_deep_sleep_start();
